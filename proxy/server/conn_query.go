@@ -34,7 +34,7 @@ import (
 func (c *ClientConn) handleQuery(sql string) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			golog.OutputSql("Error", "err:%v,sql:%s", e, sql)
+			golog.OutputSql("Error", "%s err:%v,sql:%s", c.user, e, sql)
 
 			if err, ok := e.(error); ok {
 				const size = 4096
@@ -163,7 +163,7 @@ func (c *ClientConn) getBackendConn(n *backend.Node, fromSlave bool) (co *backen
 	return
 }
 
-//获取shard的conn，第一个参数表示是不是select
+// 获取shard的conn，第一个参数表示是不是select
 func (c *ClientConn) getShardConns(fromSlave bool, plan *router.Plan) (map[string]*backend.BackendConn, error) {
 	var err error
 	if plan == nil || len(plan.RouteNodeIndexs) == 0 {
@@ -212,8 +212,9 @@ func (c *ClientConn) executeInNode(conn *backend.BackendConn, sql string, args [
 	if strings.ToLower(c.proxy.logSql[c.proxy.logSqlIndex]) != golog.LogSqlOff &&
 		execTime >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
 		c.proxy.counter.IncrSlowLogTotal()
-		golog.OutputSql(state, "%.1fms - %s->%s:%s",
+		golog.OutputSql(state, "%.1fms - %s %s->%s:%s",
 			execTime,
+			c.user,
 			c.c.RemoteAddr(),
 			conn.GetAddr(),
 			sql,
@@ -267,8 +268,9 @@ func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, 
 			if c.proxy.logSql[c.proxy.logSqlIndex] != golog.LogSqlOff &&
 				execTime >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
 				c.proxy.counter.IncrSlowLogTotal()
-				golog.OutputSql(state, "%.1fms - %s->%s:%s",
+				golog.OutputSql(state, "%.1fms - %s %s->%s:%s",
 					execTime,
+					c.user,
 					c.c.RemoteAddr(),
 					co.GetAddr(),
 					v,

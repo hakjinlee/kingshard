@@ -45,8 +45,9 @@ func (c *ClientConn) handleSet(stmt *sqlparser.Set, sql string) (err error) {
 		if c.proxy.logSql[c.proxy.logSqlIndex] != golog.LogSqlOff &&
 			execTime >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
 			c.proxy.counter.IncrSlowLogTotal()
-			golog.OutputSql(state, "%.1fms - %s->%s:%s",
+			golog.OutputSql(state, "%.1fms - %s %s->%s:%s",
 				execTime,
+				c.user,
 				c.c.RemoteAddr(),
 				c.proxy.addr,
 				sql,
