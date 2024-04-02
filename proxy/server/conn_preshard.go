@@ -34,6 +34,13 @@ type ExecuteDB struct {
 }
 
 func (c *ClientConn) isBlacklistSql(sql string) bool {
+
+	for _, blackSql := range c.proxy.blacklistSqls[c.proxy.blacklistSqlsIndex].sqls {
+		if strings.Contains(strings.ToLower(sql), blackSql) {
+			return true
+		}
+	}
+
 	fingerprint := mysql.GetFingerprint(sql)
 	md5 := mysql.GetMd5(fingerprint)
 	if _, ok := c.proxy.blacklistSqls[c.proxy.blacklistSqlsIndex].sqls[md5]; ok {
