@@ -28,12 +28,13 @@ import (
 
 	"github.com/flike/kingshard/mysql"
 
+	"sync"
+
 	"github.com/flike/kingshard/backend"
 	"github.com/flike/kingshard/config"
 	"github.com/flike/kingshard/core/errors"
 	"github.com/flike/kingshard/core/golog"
 	"github.com/flike/kingshard/proxy/router"
-	"sync"
 )
 
 type Schema struct {
@@ -55,7 +56,7 @@ const (
 type Server struct {
 	cfg   *config.Config
 	addr  string
-	users map[string]string //user : psw
+	users map[string]config.UserConfig //user : psw
 
 	statusIndex        int32
 	status             [2]int32
@@ -94,7 +95,7 @@ func (s *Server) Status() string {
 	return status
 }
 
-//TODO
+// TODO
 func parseAllowIps(allowIpsStr string) ([]IPInfo, error) {
 	if len(allowIpsStr) == 0 {
 		return make([]IPInfo, 0, 10), nil
@@ -109,7 +110,7 @@ func parseAllowIps(allowIpsStr string) ([]IPInfo, error) {
 	return allowIpsList, nil
 }
 
-//parse the blacklist sql file
+// parse the blacklist sql file
 func parseBlackListSqls(blackListFilePath string) (*BlacklistSqls, error) {
 	bs := new(BlacklistSqls)
 	bs.sqls = make(map[string]string)
@@ -228,9 +229,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	s.cfg = cfg
 	s.counter = new(Counter)
 	s.addr = cfg.Addr
-	s.users = make(map[string]string)
+	s.users = make(map[string]config.UserConfig)
 	for _, user := range cfg.UserList {
-		s.users[user.User] = user.Password
+		s.users[user.User] = user
 	}
 	atomic.StoreInt32(&s.statusIndex, 0)
 	s.status[s.statusIndex] = Online
@@ -780,9 +781,9 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 		return
 	}
 
-	newUserList := make(map[string]string)
+	newUserList := make(map[string]config.UserConfig)
 	for _, user := range newCfg.UserList {
-		newUserList[user.User] = user.Password
+		newUserList[user.User] = user
 	}
 
 	for user, _ := range newUserList {
@@ -842,35 +843,35 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 	s.configVer += 1
 }
 
-func (s *Server) GetMonitorData() map[string]map[string]string{
+func (s *Server) GetMonitorData() map[string]map[string]string {
 	data := make(map[string]map[string]string)
 
 	// get all node's monitor data
 	for _, node := range s.nodes {
 		//get master monitor data
 		dbData := make(map[string]string)
-		idleConns,cacheConns,pushConnCount,popConnCount := node.Master.ConnCount()
+		idleConns, cacheConns, pushConnCount, popConnCount := node.Master.ConnCount()
 
-		dbData["idleConn"] 		= strconv.Itoa(idleConns)
-		dbData["cacheConns"] 	= strconv.Itoa(cacheConns)
+		dbData["idleConn"] = strconv.Itoa(idleConns)
+		dbData["cacheConns"] = strconv.Itoa(cacheConns)
 		dbData["pushConnCount"] = strconv.FormatInt(pushConnCount, 10)
-		dbData["popConnCount"] 	= strconv.FormatInt(popConnCount, 10)
-		dbData["maxConn"]	= fmt.Sprintf("%d", node.Cfg.MaxConnNum)
-		dbData["type"] 		= "master"
+		dbData["popConnCount"] = strconv.FormatInt(popConnCount, 10)
+		dbData["maxConn"] = fmt.Sprintf("%d", node.Cfg.MaxConnNum)
+		dbData["type"] = "master"
 
 		data[node.Master.Addr()] = dbData
 
 		//get all slave monitor data
 		for _, slaveNode := range node.Slave {
 			slaveDbData := make(map[string]string)
-			idleConns,cacheConns,pushConnCount,popConnCount := slaveNode.ConnCount()
-			
-			slaveDbData["idleConn"] 		= strconv.Itoa(idleConns)
-			slaveDbData["cacheConns"] 		= strconv.Itoa(cacheConns)
-			slaveDbData["pushConnCount"] 	= strconv.FormatInt(pushConnCount, 10)
-			slaveDbData["popConnCount"] 	= strconv.FormatInt(popConnCount, 10)
-			slaveDbData["maxConn"]	= fmt.Sprintf("%d", node.Cfg.MaxConnNum)
-			slaveDbData["type"] 	= "slave"
+			idleConns, cacheConns, pushConnCount, popConnCount := slaveNode.ConnCount()
+
+			slaveDbData["idleConn"] = strconv.Itoa(idleConns)
+			slaveDbData["cacheConns"] = strconv.Itoa(cacheConns)
+			slaveDbData["pushConnCount"] = strconv.FormatInt(pushConnCount, 10)
+			slaveDbData["popConnCount"] = strconv.FormatInt(popConnCount, 10)
+			slaveDbData["maxConn"] = fmt.Sprintf("%d", node.Cfg.MaxConnNum)
+			slaveDbData["type"] = "slave"
 
 			data[slaveNode.Addr()] = slaveDbData
 		}

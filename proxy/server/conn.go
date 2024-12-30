@@ -238,7 +238,7 @@ func (c *ClientConn) readHandshakeResponse() error {
 
 	if c.user != "redash" {
 		//check password
-		checkAuth := mysql.CalcPassword(c.salt, []byte(c.proxy.users[c.user]))
+		checkAuth := mysql.CalcPassword(c.salt, []byte(c.proxy.users[c.user].Password))
 		if !bytes.Equal(auth, checkAuth) {
 			golog.Error("ClientConn", "readHandshakeResponse", "error", 0,
 				"auth", auth,
@@ -446,4 +446,11 @@ func (c *ClientConn) reloadConfig() error {
 	c.nodes = c.proxy.nodes
 
 	return nil
+}
+
+func (c *ClientConn) isAllowedUser() bool {
+	if u, ok := c.proxy.users[c.user]; ok {
+		return u.Allowed
+	}
+	return false
 }

@@ -16,6 +16,7 @@ package server
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/flike/kingshard/backend"
@@ -34,9 +35,16 @@ type ExecuteDB struct {
 }
 
 func (c *ClientConn) isBlacklistSql(sql string) bool {
-
 	for _, blackSql := range c.proxy.blacklistSqls[c.proxy.blacklistSqlsIndex].sqls {
-		if strings.Contains(strings.ToLower(sql), blackSql) {
+		sql = strings.ToLower(sql)
+
+		re, err := regexp.Compile(blackSql)
+		if err != nil {
+			golog.Error("ClientConn", "isBlacklistSql", err.Error(), 0)
+			return false
+		}
+
+		if re.MatchString(sql) {
 			return true
 		}
 	}
@@ -60,7 +68,7 @@ func (c *ClientConn) preHandleShard(sql string) (bool, error) {
 	}
 	//filter the blacklist sql
 	if c.proxy.blacklistSqls[c.proxy.blacklistSqlsIndex].sqlsLen != 0 {
-		if c.isBlacklistSql(sql) {
+		if !c.isAllowedUser() && c.isBlacklistSql(sql) {
 			golog.OutputSql("Forbidden", "%s %s->%s:%s",
 				c.user,
 				c.c.RemoteAddr(),
